@@ -1,0 +1,8 @@
+{
+  "name": "Copy of Fitness AI Coach",
+  "description": "Um personal trainer e nutricionista completo alimentado por IA. Gere treinos, planos de dieta, analise seu progresso e converse com seu coach virtual.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone"
+  ]
+}
