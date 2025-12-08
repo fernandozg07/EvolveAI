@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { User, Save, Activity, HeartPulse, Dumbbell, AlertTriangle, Utensils, Settings } from 'lucide-react';
 import { UserProfile } from '../types';
+import { useAuth } from '../contexts/AuthContext';
 
 const Profile: React.FC = () => {
+  const { currentUser } = useAuth();
   const [formData, setFormData] = useState<UserProfile>({
     name: '',
     age: '',
@@ -19,11 +21,12 @@ const Profile: React.FC = () => {
   const [saved, setSaved] = useState(false);
 
   useEffect(() => {
-    const savedProfile = localStorage.getItem('fitness-ai-profile');
+    if (!currentUser) return;
+    const savedProfile = localStorage.getItem(`fitness-ai-profile-${currentUser}`);
     if (savedProfile) {
       setFormData(JSON.parse(savedProfile));
     }
-  }, []);
+  }, [currentUser]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
@@ -33,9 +36,11 @@ const Profile: React.FC = () => {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    localStorage.setItem('fitness-ai-profile', JSON.stringify(formData));
-    setSaved(true);
-    setTimeout(() => setSaved(false), 3000);
+    if (currentUser) {
+      localStorage.setItem(`fitness-ai-profile-${currentUser}`, JSON.stringify(formData));
+      setSaved(true);
+      setTimeout(() => setSaved(false), 3000);
+    }
   };
 
   return (

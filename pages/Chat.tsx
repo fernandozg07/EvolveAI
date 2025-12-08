@@ -4,6 +4,7 @@ import { ChatMessage, UserProfile } from '../types';
 import { MessageCircle, Send, Loader2, Bot, User, Trash2, AlertCircle } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import ReactMarkdown from 'react-markdown';
+import { useAuth } from '../contexts/AuthContext';
 
 const Chat: React.FC = () => {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -11,17 +12,20 @@ const Chat: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [userProfile, setUserProfile] = useState<UserProfile | undefined>(undefined);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const { currentUser } = useAuth();
 
   // Load History and Profile on Mount
   useEffect(() => {
+    if (!currentUser) return;
+    
     // 1. Load Profile
-    const savedProfile = localStorage.getItem('fitness-ai-profile');
+    const savedProfile = localStorage.getItem(`fitness-ai-profile-${currentUser}`);
     if (savedProfile) {
       setUserProfile(JSON.parse(savedProfile));
     }
 
     // 2. Load Chat History
-    const savedHistory = localStorage.getItem('fitness-ai-chat-history');
+    const savedHistory = localStorage.getItem(`fitness-ai-chat-history-${currentUser}`);
     if (savedHistory) {
       setMessages(JSON.parse(savedHistory));
     } else {
@@ -36,15 +40,15 @@ const Chat: React.FC = () => {
       };
       setMessages([initialMsg]);
     }
-  }, []);
+  }, [currentUser]);
 
   // Save History whenever messages change
   useEffect(() => {
-    if (messages.length > 0) {
-      localStorage.setItem('fitness-ai-chat-history', JSON.stringify(messages));
+    if (messages.length > 0 && currentUser) {
+      localStorage.setItem(`fitness-ai-chat-history-${currentUser}`, JSON.stringify(messages));
     }
     scrollToBottom();
-  }, [messages]);
+  }, [messages, currentUser]);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -52,7 +56,9 @@ const Chat: React.FC = () => {
 
   const clearHistory = () => {
     if(confirm("Deseja apagar todo o histórico de conversa?")) {
-      localStorage.removeItem('fitness-ai-chat-history');
+      if (currentUser) {
+        localStorage.removeItem(`fitness-ai-chat-history-${currentUser}`);
+      }
       setMessages([{ 
         id: Date.now().toString(), 
         role: 'model', 

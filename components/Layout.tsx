@@ -1,12 +1,20 @@
 import React from 'react';
-import { NavLink, Outlet } from 'react-router-dom';
-import { Dumbbell, Utensils, Activity, MessageCircle, BarChart, Home, Menu, X, BookOpen, Camera, UserCircle } from 'lucide-react';
+import { NavLink, Outlet, useNavigate } from 'react-router-dom';
+import { Dumbbell, Utensils, Activity, MessageCircle, BarChart, Home, Menu, X, BookOpen, Camera, UserCircle, LogOut } from 'lucide-react';
+import { useAuth } from '../contexts/AuthContext';
 
 const Layout: React.FC = () => {
   const [isMenuOpen, setIsMenuOpen] = React.useState(false);
+  const { currentUser, logout } = useAuth();
+  const navigate = useNavigate();
 
   const toggleMenu = () => setIsMenuOpen(!isMenuOpen);
   const closeMenu = () => setIsMenuOpen(false);
+  
+  const handleLogout = () => {
+    logout();
+    navigate('/login');
+  };
 
   const navItems = [
     { to: "/", icon: <Home size={20} />, label: "Início", color: "text-slate-600 group-hover:text-indigo-600" },
@@ -39,6 +47,12 @@ const Layout: React.FC = () => {
             
             {/* Desktop Menu */}
             <div className="hidden md:flex space-x-1 items-center">
+              <div className="mr-3 px-3 py-1 bg-indigo-50 rounded-full text-xs font-bold text-indigo-700">
+                {currentUser}
+              </div>
+              <button onClick={handleLogout} className="p-2 text-slate-400 hover:text-red-500 transition-colors" title="Sair">
+                <LogOut size={18} />
+              </button>
               {navItems.map((item) => (
                 <NavLink
                   key={item.to}
