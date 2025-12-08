@@ -17,7 +17,7 @@ const Layout: React.FC = () => {
     { to: "/progress", icon: <Activity size={20} />, label: "Progresso", color: "text-amber-500 group-hover:text-amber-600" },
     { to: "/chat", icon: <MessageCircle size={20} />, label: "Chat", color: "text-pink-500 group-hover:text-pink-600" },
     { to: "/my-workouts", icon: <BarChart size={20} />, label: "Meus Planos", color: "text-purple-500 group-hover:text-purple-600" },
-    { to: "/profile", icon: <UserCircle size={20} />, label: "Meu Perfil", color: "text-blue-500 group-hover:text-blue-600" },
+    { to: "/profile", icon: <UserCircle size={20} />, label: "Minha Conta", color: "text-blue-500 group-hover:text-blue-600" },
   ];
 
   return (
@@ -104,7 +104,7 @@ const Layout: React.FC = () => {
       <footer className="bg-white border-t border-slate-100 mt-auto">
         <div className="max-w-7xl mx-auto py-8 px-4 text-center">
           <p className="text-slate-400 text-sm font-medium">
-            &copy; {new Date().getFullYear()} Fitness AI. Criado com <span className="text-indigo-500">Google Gemini</span>.
+            &copy; {new Date().getFullYear()} Fitness AI. Alimentado por <span className="text-indigo-500">Inteligência Artificial</span>.
           </p>
         </div>
       </footer>

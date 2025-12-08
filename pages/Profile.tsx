@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { User, Save, Activity, HeartPulse, Dumbbell, AlertTriangle, Utensils } from 'lucide-react';
+import { User, Save, Activity, HeartPulse, Dumbbell, AlertTriangle, Utensils, Settings } from 'lucide-react';
 import { UserProfile } from '../types';
 
 const Profile: React.FC = () => {
@@ -43,11 +43,11 @@ const Profile: React.FC = () => {
       <div className="bg-white rounded-3xl shadow-sm border border-slate-100 overflow-hidden">
         <div className="bg-gradient-to-r from-blue-600 to-indigo-700 p-8 text-white">
           <div className="flex items-center gap-3 mb-2">
-            <User className="text-blue-200" size={32} />
-            <h2 className="text-3xl font-extrabold tracking-tight">Meu Perfil de Atleta</h2>
+            <Settings className="text-blue-200" size={32} />
+            <h2 className="text-3xl font-extrabold tracking-tight">Configurações da Conta</h2>
           </div>
           <p className="text-blue-100 max-w-2xl">
-            Preencha seus dados para que a IA conheça você profundamente. Isso personaliza o Chat, os treinos e as dietas.
+            Estes dados são usados pela Inteligência Artificial para personalizar seus treinos, dietas e dicas no chat. Seus dados ficam salvos apenas neste dispositivo.
           </p>
         </div>
 
@@ -146,7 +146,7 @@ const Profile: React.FC = () => {
               type="submit" 
               className={`w-full py-4 rounded-xl font-bold shadow-lg transition-all flex justify-center items-center gap-2 transform active:scale-95 text-white ${saved ? 'bg-green-600 hover:bg-green-700' : 'bg-indigo-600 hover:bg-indigo-700'}`}
             >
-              <Save size={20} /> {saved ? 'Perfil Salvo com Sucesso!' : 'Salvar Meu Perfil'}
+              <Save size={20} /> {saved ? 'Dados Salvos com Sucesso!' : 'Salvar Alterações'}
             </button>
           </div>
 

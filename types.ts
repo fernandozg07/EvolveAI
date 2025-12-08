@@ -5,6 +5,7 @@ export interface Exercise {
   rest: string;
   notes?: string;
   weight?: string; // Carga em kg
+  completed?: boolean; // Para o modo ativo
 }
 
 export interface WorkoutDay {
@@ -41,6 +42,11 @@ export interface Meal {
   protein: string;
 }
 
+export interface ShoppingItem {
+  category: string; // Hortifruti, Carnes, Grãos...
+  items: string[];
+}
+
 export interface DietPlan {
   id?: string;
   goal: string;
@@ -50,6 +56,7 @@ export interface DietPlan {
   meals: Meal[];
   hydration: string;
   createdAt: number;
+  shoppingList?: ShoppingItem[];
 }
 
 export interface ExerciseInfo {

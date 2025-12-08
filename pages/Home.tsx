@@ -69,7 +69,7 @@ const Home: React.FC = () => {
           </div>
           <h1 className="text-5xl md:text-6xl font-black tracking-tight leading-tight">
             Treine Melhor com <br/>
-            <span className="bg-gradient-to-r from-indigo-400 to-purple-400 bg-clip-text text-transparent">Gemini AI</span>
+            <span className="bg-gradient-to-r from-indigo-400 to-purple-400 bg-clip-text text-transparent">Inteligência Artificial</span>
           </h1>
           <p className="text-lg md:text-xl text-slate-300 max-w-2xl mx-auto font-light leading-relaxed">
             Seu treinador pessoal inteligente. Gere planos, corrija sua postura com a câmera e controle sua nutrição — tudo em um só lugar.

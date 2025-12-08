@@ -1,13 +1,15 @@
 import React, { useState, useEffect } from 'react';
-import { generateDietPlan } from '../services/geminiService';
-import { DietPlan } from '../types';
-import { Utensils, Loader2, PieChart, Activity, Apple, Clock, Flame, Droplets, UserCircle } from 'lucide-react';
+import { generateDietPlan, generateShoppingList } from '../services/geminiService';
+import { DietPlan, ShoppingItem } from '../types';
+import { Utensils, Loader2, PieChart, Activity, Apple, Clock, Flame, Droplets, UserCircle, ShoppingCart, CheckCircle, X } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 const DietGenerator: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [diet, setDiet] = useState<DietPlan | null>(null);
   const [hasProfile, setHasProfile] = useState(false);
+  const [showShoppingList, setShowShoppingList] = useState(false);
+  const [shoppingLoading, setShoppingLoading] = useState(false);
   
   const [formData, setFormData] = useState({
     goal: 'Perder Peso',
@@ -30,7 +32,7 @@ const DietGenerator: React.FC = () => {
         weight: profile.weight,
         height: profile.height,
         age: profile.age,
-        goal: profile.goal === 'Hipertrofia' ? 'Ganhar Músculo' : 'Perder Peso', // Simple mapping
+        goal: profile.goal === 'Hipertrofia' ? 'Ganhar Músculo' : 'Perder Peso',
         activityLevel: profile.activityLevel,
       }));
     }
@@ -40,6 +42,7 @@ const DietGenerator: React.FC = () => {
     e.preventDefault();
     setLoading(true);
     setDiet(null);
+    setShowShoppingList(false);
     try {
       const plan = await generateDietPlan(
         formData.goal, 
@@ -60,8 +63,23 @@ const DietGenerator: React.FC = () => {
     }
   };
 
+  const handleGenerateShoppingList = async () => {
+    if (!diet) return;
+    setShoppingLoading(true);
+    try {
+      const items = await generateShoppingList(diet);
+      setDiet(prev => prev ? ({ ...prev, shoppingList: items }) : null);
+      setShowShoppingList(true);
+    } catch (error) {
+      console.error(error);
+      alert("Erro ao gerar lista de compras.");
+    } finally {
+      setShoppingLoading(false);
+    }
+  };
+
   return (
-    <div className="max-w-5xl mx-auto space-y-8">
+    <div className="max-w-5xl mx-auto space-y-8 relative">
       {/* Header Form */}
       <div className="bg-white rounded-3xl shadow-sm border border-slate-100 overflow-hidden">
         <div className="bg-gradient-to-r from-emerald-600 to-teal-700 p-8 text-white relative">
@@ -70,7 +88,7 @@ const DietGenerator: React.FC = () => {
             <h2 className="text-3xl font-extrabold tracking-tight">Nutricionista AI</h2>
           </div>
           <p className="text-emerald-100 max-w-2xl">
-            Cálculo preciso de macros e sugestões de cardápio adaptadas ao seu estilo de vida e preferências.
+            Cálculo preciso de macros e sugestões de cardápio adaptadas ao seu estilo de vida.
           </p>
           {hasProfile && (
              <div className="absolute top-8 right-8 hidden md:flex items-center gap-2 bg-white/20 px-3 py-1 rounded-full text-xs font-bold backdrop-blur-md">
@@ -142,7 +160,6 @@ const DietGenerator: React.FC = () => {
               <option value="Vegana">Vegana</option>
               <option value="Low Carb">Low Carb</option>
               <option value="Cetogênica">Cetogênica (Keto)</option>
-              <option value="Paleo">Paleolítica</option>
             </select>
            </div>
 
@@ -179,7 +196,7 @@ const DietGenerator: React.FC = () => {
       </div>
 
       {diet && (
-        <div className="space-y-8 animate-fade-in">
+        <div className="space-y-8 animate-fade-in pb-20">
           {/* Macros Dashboard */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
              <div className="md:col-span-2 bg-slate-900 text-white rounded-3xl p-8 shadow-xl relative overflow-hidden">
@@ -220,12 +237,23 @@ const DietGenerator: React.FC = () => {
                 </div>
              </div>
 
-             <div className="bg-white rounded-3xl p-6 shadow-sm border border-slate-100 flex flex-col justify-center items-center text-center">
-               <div className="w-16 h-16 bg-emerald-100 rounded-full flex items-center justify-center text-emerald-600 mb-4">
-                 <Utensils size={32} />
+             <div className="space-y-4">
+               <div className="bg-white rounded-3xl p-6 shadow-sm border border-slate-100 flex flex-col justify-center items-center text-center h-full">
+                 <div className="w-16 h-16 bg-emerald-100 rounded-full flex items-center justify-center text-emerald-600 mb-4">
+                   <Utensils size={32} />
+                 </div>
+                 <h3 className="font-bold text-slate-900 text-lg">Dieta {diet.dietType}</h3>
+                 <p className="text-slate-500 mt-2 text-sm">Plano otimizado para nível <br/><strong>{diet.activityLevel}</strong>.</p>
+                 
+                 <button 
+                  onClick={handleGenerateShoppingList}
+                  disabled={shoppingLoading}
+                  className="mt-6 w-full py-3 bg-slate-800 hover:bg-slate-900 text-white rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition-all"
+                 >
+                   {shoppingLoading ? <Loader2 className="animate-spin" /> : <ShoppingCart size={16} />}
+                   {shoppingLoading ? 'Gerando...' : 'Gerar Lista de Compras'}
+                 </button>
                </div>
-               <h3 className="font-bold text-slate-900 text-lg">Dieta {diet.dietType}</h3>
-               <p className="text-slate-500 mt-2 text-sm">Plano otimizado para nível <br/><strong>{diet.activityLevel}</strong>.</p>
              </div>
           </div>
 
@@ -260,6 +288,40 @@ const DietGenerator: React.FC = () => {
                   </div>
                 </div>
               ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Shopping List Modal */}
+      {showShoppingList && diet?.shoppingList && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
+          <div className="bg-white w-full max-w-lg rounded-3xl shadow-2xl max-h-[80vh] flex flex-col">
+            <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-emerald-50/50 rounded-t-3xl">
+              <h3 className="text-xl font-bold text-slate-800 flex items-center gap-2">
+                <ShoppingCart className="text-emerald-600" /> Lista de Supermercado
+              </h3>
+              <button onClick={() => setShowShoppingList(false)} className="p-2 hover:bg-white rounded-full transition-colors text-slate-500"><X size={20}/></button>
+            </div>
+            
+            <div className="overflow-y-auto p-6 space-y-6">
+              {diet.shoppingList.map((category, idx) => (
+                <div key={idx}>
+                  <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">{category.category}</h4>
+                  <div className="space-y-2">
+                    {category.items.map((item, i) => (
+                      <div key={i} className="flex items-center gap-3 p-3 bg-slate-50 rounded-xl border border-gray-100 hover:bg-emerald-50/30 transition-colors">
+                        <div className="w-5 h-5 rounded border border-gray-300 bg-white flex items-center justify-center"></div>
+                        <span className="text-slate-700 text-sm font-medium">{item}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div className="p-4 border-t border-gray-100 text-center">
+              <button onClick={() => window.print()} className="text-emerald-600 font-bold text-sm hover:underline">Imprimir Lista</button>
             </div>
           </div>
         </div>

@@ -1,6 +1,6 @@
 import React, { useRef, useState, useEffect } from 'react';
 import { GoogleGenAI, LiveServerMessage, Modality } from '@google/genai';
-import { Camera, Mic, MicOff, Video, VideoOff, Play, Square, Loader2, Info, ChevronDown, CheckCircle } from 'lucide-react';
+import { Camera, Mic, MicOff, Video, VideoOff, Play, Square, Loader2, Info, ChevronDown, CheckCircle, Cpu } from 'lucide-react';
 
 // Dicionário de exercícios com dicas para o usuário e contexto para a IA
 const EXERCISE_GUIDES: Record<string, { label: string, context: string, tips: string[] }> = {
@@ -60,6 +60,7 @@ const LiveCoach: React.FC = () => {
 
   const apiKey = process.env.API_KEY;
 
+  // Cleanup on unmount
   useEffect(() => {
     return () => {
       stopSession();
@@ -68,24 +69,44 @@ const LiveCoach: React.FC = () => {
 
   const initSession = async () => {
     if (!apiKey) {
-      alert("Chave API ausente");
+      alert("Chave API não configurada.");
       return;
     }
     
+    // Se já estiver conectado ou carregando, evita duplo clique
+    if (connected || loading) return;
+
+    // Garante que tudo esteja limpo antes de começar
+    await stopSession();
+
     setLoading(true);
 
     try {
       const ai = new GoogleGenAI({ apiKey });
+      
+      // Get Media Stream (Camera + Mic)
+      // Adicionado catch específico para erros de permissão/hardware
       const stream = await navigator.mediaDevices.getUserMedia({ 
         audio: true, 
         video: { width: 640, height: 480 } 
+      }).catch(err => {
+        throw new Error("Não foi possível acessar a câmera/microfone. Verifique se outro app está usando.");
       });
       
       mediaStreamRef.current = stream;
+      
+      // Attach to Video Element
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
+        videoRef.current.play().catch(e => {
+            // Ignora erro de interrupção (comum quando se para a sessão rapidamente)
+            if (e.name !== 'AbortError') {
+                console.error("Error playing video:", e);
+            }
+        });
       }
 
+      // Initialize Audio Contexts
       const inputCtx = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 16000 });
       const outputCtx = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 24000 });
       
@@ -120,6 +141,7 @@ const LiveCoach: React.FC = () => {
             setConnected(true);
             setLoading(false);
             
+            // Audio Processing Pipeline
             const source = inputCtx.createMediaStreamSource(stream);
             sourceNodeRef.current = source;
             
@@ -127,16 +149,18 @@ const LiveCoach: React.FC = () => {
             scriptProcessorRef.current = scriptProcessor;
 
             scriptProcessor.onaudioprocess = (e) => {
-              if (!connected && !sessionRef.current) return; 
+              // Only send data if connected and session exists
+              if (!sessionRef.current) return; 
 
               const inputData = e.inputBuffer.getChannelData(0);
               const pcmBlob = createBlob(inputData);
               
-              if (sessionRef.current) {
-                sessionRef.current.then((session: any) => {
-                   session.sendRealtimeInput({ media: pcmBlob });
-                });
-              }
+              sessionRef.current.then((session: any) => {
+                 // Check connection state implicitly by try/catch or assuming promise resolves
+                 session.sendRealtimeInput({ media: pcmBlob });
+              }).catch((err: any) => {
+                 console.error("Error sending audio:", err);
+              });
             };
             
             source.connect(scriptProcessor);
@@ -156,7 +180,7 @@ const LiveCoach: React.FC = () => {
             }
           },
           onclose: () => {
-            console.log("Session closed");
+            console.log("Session closed remotely");
             stopSession();
           },
           onerror: (e) => {
@@ -168,8 +192,9 @@ const LiveCoach: React.FC = () => {
 
       sessionRef.current = sessionPromise;
 
-    } catch (error) {
+    } catch (error: any) {
       console.error("Failed to start session:", error);
+      alert(error.message || "Erro ao iniciar sessão.");
       setLoading(false);
       stopSession();
     }
@@ -185,40 +210,70 @@ const LiveCoach: React.FC = () => {
       const ctx = canvas.getContext('2d');
       if (!ctx) return;
 
+      if (videoRef.current.videoWidth === 0 || videoRef.current.videoHeight === 0) return;
+
       canvas.width = videoRef.current.videoWidth;
       canvas.height = videoRef.current.videoHeight;
       ctx.drawImage(videoRef.current, 0, 0);
 
-      const base64Data = canvas.toDataURL('image/jpeg', 0.6).split(',')[1];
+      const base64Data = canvas.toDataURL('image/jpeg', 0.5).split(',')[1]; // Lower quality for speed
       
       sessionRef.current.then((session: any) => {
         session.sendRealtimeInput({
           media: { data: base64Data, mimeType: 'image/jpeg' }
         });
-      });
+      }).catch((err: any) => console.error("Error sending video frame:", err));
       
-    }, 1000); 
+    }, 800); // 1.25 FPS roughly
   };
 
-  const stopSession = () => {
+  const stopSession = async () => {
     setConnected(false);
     setLoading(false);
-    mediaStreamRef.current?.getTracks().forEach(track => track.stop());
-    inputAudioContextRef.current?.close();
-    outputAudioContextRef.current?.close();
+
+    // 1. Stop all media tracks (Camera/Mic) to release hardware
+    if (mediaStreamRef.current) {
+      mediaStreamRef.current.getTracks().forEach(track => {
+        track.stop();
+      });
+      mediaStreamRef.current = null;
+    }
+
+    // 2. Clear Video Element - CRITICAL FIX
+    if (videoRef.current) {
+      videoRef.current.pause();
+      videoRef.current.srcObject = null;
+      videoRef.current.load(); // Forces browser to release video buffer
+    }
+
+    // 3. Clear Intervals
     if (frameIntervalRef.current) {
       clearInterval(frameIntervalRef.current);
       frameIntervalRef.current = null;
     }
+
+    // 4. Close Audio Contexts Safely
+    if (inputAudioContextRef.current && inputAudioContextRef.current.state !== 'closed') {
+      try { await inputAudioContextRef.current.close(); } catch(e) { console.error(e) }
+    }
+    if (outputAudioContextRef.current && outputAudioContextRef.current.state !== 'closed') {
+      try { await outputAudioContextRef.current.close(); } catch(e) { console.error(e) }
+    }
+
+    // 5. Disconnect Audio Nodes
     if (scriptProcessorRef.current) {
-      scriptProcessorRef.current.disconnect();
+      try { scriptProcessorRef.current.disconnect(); } catch(e) {}
       scriptProcessorRef.current = null;
     }
     if (sourceNodeRef.current) {
-      sourceNodeRef.current.disconnect();
+      try { sourceNodeRef.current.disconnect(); } catch(e) {}
       sourceNodeRef.current = null;
     }
+
+    // 6. Reset Refs
     sessionRef.current = null;
+    inputAudioContextRef.current = null;
+    outputAudioContextRef.current = null;
   };
 
   const createBlob = (data: Float32Array) => {
@@ -268,26 +323,32 @@ const LiveCoach: React.FC = () => {
   };
 
   const playAudioResponse = async (base64Audio: string) => {
-    if (!outputAudioContextRef.current) return;
-    const ctx = outputAudioContextRef.current;
-    const audioBuffer = await decodeAudioData(decode(base64Audio), ctx, 24000, 1);
-    const source = ctx.createBufferSource();
-    source.buffer = audioBuffer;
-    source.connect(ctx.destination);
-    source.addEventListener('ended', () => {
-      sourcesRef.current.delete(source);
-    });
-    const currentTime = ctx.currentTime;
-    if (nextStartTimeRef.current < currentTime) {
-      nextStartTimeRef.current = currentTime;
+    if (!outputAudioContextRef.current || outputAudioContextRef.current.state === 'closed') return;
+    try {
+      const ctx = outputAudioContextRef.current;
+      const audioBuffer = await decodeAudioData(decode(base64Audio), ctx, 24000, 1);
+      const source = ctx.createBufferSource();
+      source.buffer = audioBuffer;
+      source.connect(ctx.destination);
+      source.addEventListener('ended', () => {
+        sourcesRef.current.delete(source);
+      });
+      const currentTime = ctx.currentTime;
+      if (nextStartTimeRef.current < currentTime) {
+        nextStartTimeRef.current = currentTime;
+      }
+      source.start(nextStartTimeRef.current);
+      nextStartTimeRef.current += audioBuffer.duration;
+      sourcesRef.current.add(source);
+    } catch (e) {
+      console.error("Audio playback error", e);
     }
-    source.start(nextStartTimeRef.current);
-    nextStartTimeRef.current += audioBuffer.duration;
-    sourcesRef.current.add(source);
   };
 
   const stopAllAudio = () => {
-    sourcesRef.current.forEach(source => source.stop());
+    sourcesRef.current.forEach(source => {
+      try { source.stop(); } catch(e){}
+    });
     sourcesRef.current.clear();
     nextStartTimeRef.current = 0;
   };
@@ -306,12 +367,26 @@ const LiveCoach: React.FC = () => {
     }
   };
 
+  const handleExerciseChange = async (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const newValue = e.target.value;
+    setSelectedExercise(newValue);
+    if (connected) {
+       // Se o usuário trocar o exercício enquanto conectado, reiniciamos a sessão para atualizar o prompt
+       await stopSession();
+       // Opcional: Auto-start não recomendado para evitar loops, melhor deixar o usuário clicar de novo
+       alert(`Exercício alterado para ${EXERCISE_GUIDES[newValue].label}. Clique em Iniciar Sessão para começar.`);
+    }
+  };
+
   return (
     <div className="max-w-6xl mx-auto space-y-6">
        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
         <div>
-           <h2 className="text-3xl font-extrabold text-slate-900 tracking-tight">Coach Ao Vivo IA</h2>
-           <p className="text-slate-500 mt-1">Selecione o exercício e deixe a IA corrigir sua postura.</p>
+           <div className="flex items-center gap-2 mb-1">
+             <Cpu className="text-rose-500" size={24}/>
+             <h2 className="text-3xl font-extrabold text-slate-900 tracking-tight">Coach Ao Vivo</h2>
+           </div>
+           <p className="text-slate-500">Selecione o exercício e deixe a IA corrigir sua postura em tempo real.</p>
         </div>
         
         {/* Exercise Selector */}
@@ -319,9 +394,8 @@ const LiveCoach: React.FC = () => {
           <div className="relative">
             <select 
               value={selectedExercise}
-              onChange={(e) => !connected && setSelectedExercise(e.target.value)}
-              disabled={connected}
-              className="appearance-none bg-white border border-gray-300 text-slate-700 py-3 pl-4 pr-10 rounded-xl font-bold shadow-sm focus:outline-none focus:ring-2 focus:ring-rose-500 disabled:opacity-70 disabled:bg-gray-100 min-w-[200px]"
+              onChange={handleExerciseChange}
+              className="appearance-none bg-white border border-gray-300 text-slate-700 py-3 pl-4 pr-10 rounded-xl font-bold shadow-sm focus:outline-none focus:ring-2 focus:ring-rose-500 min-w-[200px]"
             >
               {Object.entries(EXERCISE_GUIDES).map(([key, value]) => (
                 <option key={key} value={key}>{value.label}</option>
@@ -335,7 +409,7 @@ const LiveCoach: React.FC = () => {
               onClick={initSession}
               className="flex items-center justify-center gap-2 px-6 py-3 bg-rose-600 hover:bg-rose-700 text-white rounded-xl font-bold shadow-lg shadow-rose-200 transition-all hover:scale-105"
             >
-              <Play size={20} fill="currentColor" /> Iniciar
+              <Play size={20} fill="currentColor" /> Iniciar Sessão
             </button>
           )}
           {loading && (
@@ -361,8 +435,8 @@ const LiveCoach: React.FC = () => {
             {!connected && (
               <div className="absolute inset-0 flex flex-col items-center justify-center text-white/50 z-10 bg-slate-900">
                 <Camera size={64} className="mb-4 opacity-50" />
-                <p className="font-medium text-lg">Câmera pronta</p>
-                <p className="text-sm">Selecione o exercício acima para começar</p>
+                <p className="font-medium text-lg">Câmera desligada</p>
+                <p className="text-sm">Clique em iniciar para começar o treino</p>
               </div>
             )}
             
@@ -381,12 +455,14 @@ const LiveCoach: React.FC = () => {
                     <button 
                       onClick={toggleVideo}
                       className={`p-4 rounded-full backdrop-blur-md border border-white/20 transition-all ${isVideoOn ? 'bg-white/20 text-white hover:bg-white/30' : 'bg-red-500/80 text-white'}`}
+                      title={isVideoOn ? "Desativar Câmera" : "Ativar Câmera"}
                     >
                       {isVideoOn ? <Video size={24} /> : <VideoOff size={24} />}
                     </button>
                     <button 
                       onClick={toggleAudio}
                       className={`p-4 rounded-full backdrop-blur-md border border-white/20 transition-all ${isAudioOn ? 'bg-white/20 text-white hover:bg-white/30' : 'bg-red-500/80 text-white'}`}
+                      title={isAudioOn ? "Mutar Microfone" : "Ativar Microfone"}
                     >
                       {isAudioOn ? <Mic size={24} /> : <MicOff size={24} />}
                     </button>
@@ -398,7 +474,7 @@ const LiveCoach: React.FC = () => {
                             <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
                             <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
                         </span>
-                        <span className="text-green-400 text-xs font-bold tracking-wider uppercase">Monitorando</span>
+                        <span className="text-green-400 text-xs font-bold tracking-wider uppercase">IA Ativa</span>
                      </span>
                      <span className="text-white font-bold text-sm bg-black/50 px-3 py-1 rounded-full border border-white/10">
                        {EXERCISE_GUIDES[selectedExercise].label}
@@ -427,8 +503,8 @@ const LiveCoach: React.FC = () => {
                ))}
                
                <div className="mt-8 p-4 bg-slate-50 rounded-xl border border-slate-200">
-                 <p className="text-xs text-slate-500 text-center uppercase tracking-wider font-bold mb-2">Instrução para IA</p>
-                 <p className="text-xs text-slate-400 italic text-center">"{EXERCISE_GUIDES[selectedExercise].context}"</p>
+                 <p className="text-xs text-slate-500 text-center uppercase tracking-wider font-bold mb-2">IA em Execução</p>
+                 <p className="text-xs text-slate-400 italic text-center">"O sistema está analisando seus movimentos em tempo real para evitar lesões."</p>
                </div>
              </div>
            </div>

@@ -1,5 +1,5 @@
 import { GoogleGenAI, Type } from "@google/genai";
-import { WorkoutPlan, DietPlan, ExerciseInfo, UserProfile } from "../types";
+import { WorkoutPlan, DietPlan, ExerciseInfo, UserProfile, ShoppingItem } from "../types";
 
 const apiKey = process.env.API_KEY;
 if (!apiKey) {
@@ -59,7 +59,7 @@ export const generateWorkoutPlan = async (
                       name: { type: Type.STRING },
                       sets: { type: Type.NUMBER },
                       reps: { type: Type.STRING },
-                      rest: { type: Type.STRING, description: "Ex: 60-90s" },
+                      rest: { type: Type.STRING, description: "Ex: 60s, 90s" },
                       notes: { type: Type.STRING, description: "Dica técnica curta (ex: 'Controle a descida')" },
                       weight: { type: Type.STRING, description: "Deixe vazio (string vazia)" } 
                     },
@@ -169,7 +169,44 @@ export const generateDietPlan = async (
   };
 };
 
-// 3. Explain Exercise
+// 3. Generate Shopping List from Diet
+export const generateShoppingList = async (dietPlan: DietPlan): Promise<ShoppingItem[]> => {
+  const model = "gemini-2.5-flash";
+  const mealsJson = JSON.stringify(dietPlan.meals);
+  
+  const prompt = `
+  Com base neste plano alimentar (JSON abaixo), crie uma lista de compras consolidada para o supermercado.
+  Agrupe os itens por categoria (Ex: Hortifruti, Carnes/Ovos, Grãos, Laticínios, Outros).
+  Some as quantidades se possível ou liste os itens genéricos.
+  Responda APENAS JSON.
+
+  Plano: ${mealsJson}
+  `;
+
+  const response = await ai.models.generateContent({
+    model,
+    contents: prompt,
+    config: {
+      responseMimeType: "application/json",
+      responseSchema: {
+        type: Type.ARRAY,
+        items: {
+          type: Type.OBJECT,
+          properties: {
+            category: { type: Type.STRING, description: "Nome da categoria (ex: Hortifruti)" },
+            items: { type: Type.ARRAY, items: { type: Type.STRING }, description: "Lista de itens para comprar" }
+          },
+          required: ["category", "items"]
+        }
+      }
+    }
+  });
+
+  if (!response.text) throw new Error("No shopping list generated");
+  return JSON.parse(response.text);
+};
+
+// 4. Explain Exercise
 export const explainExercise = async (exerciseName: string): Promise<ExerciseInfo> => {
   const model = "gemini-2.5-flash";
   const prompt = `Explique o exercício "${exerciseName}" detalhadamente em Português do Brasil. Foco em técnica de musculação.`;
@@ -197,7 +234,7 @@ export const explainExercise = async (exerciseName: string): Promise<ExerciseInf
   return JSON.parse(response.text);
 };
 
-// 4. Analyze Progress
+// 5. Analyze Progress
 export const analyzeProgress = async (log: string): Promise<string> => {
   const model = "gemini-2.5-flash";
   const response = await ai.models.generateContent({
@@ -207,9 +244,9 @@ export const analyzeProgress = async (log: string): Promise<string> => {
   return response.text || "Sem análise.";
 };
 
-// 5. General Chat with Profile Integration
+// 6. General Chat with Profile Integration
 export const sendChatMessage = async (
-  history: { role: string; parts: [{ text: string }] }[], 
+  history: { role: string; parts: { text: string }[] }[], 
   message: string,
   userProfile?: UserProfile
 ): Promise<string> => {
@@ -221,17 +258,19 @@ export const sendChatMessage = async (
   if (userProfile) {
     systemInstruction += `
     
-    DADOS DO SEU ALUNO (IMPORTANTE):
+    MEMÓRIA DO ALUNO (USE ISSO PARA PERSONALIZAR A RESPOSTA):
     - Nome: ${userProfile.name}
     - Idade: ${userProfile.age} anos
     - Peso/Altura: ${userProfile.weight}kg / ${userProfile.height}cm
     - Objetivo Principal: ${userProfile.goal}
     - Nível de Atividade: ${userProfile.activityLevel}
-    - Histórico de Lesões/Dores: ${userProfile.injuries || "Nenhuma relatada"}
+    - Histórico de Lesões/Dores: ${userProfile.injuries || "Nenhuma relatada"} (CRUCIAL: Se sugerir exercícios, evite os que agravem essas lesões).
     - Equipamentos Disponíveis: ${userProfile.equipment || "Não especificado"}
     - Restrições Alimentares: ${userProfile.dietaryRestrictions || "Nenhuma"}
 
-    Use essas informações para personalizar TODAS as suas respostas. Se o aluno reclamar de dor, verifique o histórico de lesões. Se pedir exercício, considere o equipamento que ele tem.`;
+    Se o usuário perguntar "O que devo comer?", baseie-se nas restrições dele.
+    Se perguntar "Posso fazer agachamento?", verifique se ele tem lesão no joelho na lista acima.
+    Trate-o pelo nome. Seja motivador como um coach real.`;
   }
 
   const chat = ai.chats.create({
