@@ -1,6 +1,6 @@
 import React, { useRef, useState, useEffect } from 'react';
 import { GoogleGenAI, LiveServerMessage, Modality } from '@google/genai';
-import { Camera, Mic, MicOff, Video, VideoOff, Play, Square, Loader2, Info, ChevronDown, CheckCircle, Cpu } from 'lucide-react';
+import { Camera, Mic, MicOff, Video, VideoOff, Play, Square, Loader2, Info, ChevronDown, CheckCircle, Cpu, SwitchCamera } from 'lucide-react';
 
 // Dicionário de exercícios com dicas para o usuário e contexto para a IA
 const EXERCISE_GUIDES: Record<string, { label: string, context: string, tips: string[] }> = {
@@ -42,6 +42,7 @@ const LiveCoach: React.FC = () => {
   const [isVideoOn, setIsVideoOn] = useState(true);
   const [isAudioOn, setIsAudioOn] = useState(true);
   const [selectedExercise, setSelectedExercise] = useState<string>('squat');
+  const [facingMode, setFacingMode] = useState<'user' | 'environment'>('environment');
   
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -85,10 +86,13 @@ const LiveCoach: React.FC = () => {
       const ai = new GoogleGenAI({ apiKey });
       
       // Get Media Stream (Camera + Mic)
-      // Adicionado catch específico para erros de permissão/hardware
       const stream = await navigator.mediaDevices.getUserMedia({ 
         audio: true, 
-        video: { width: 640, height: 480 } 
+        video: { 
+          width: 640, 
+          height: 480,
+          facingMode: facingMode
+        } 
       }).catch(err => {
         throw new Error("Não foi possível acessar a câmera/microfone. Verifique se outro app está usando.");
       });
@@ -367,6 +371,15 @@ const LiveCoach: React.FC = () => {
     }
   };
 
+  const switchCamera = async () => {
+    const newFacingMode = facingMode === 'user' ? 'environment' : 'user';
+    setFacingMode(newFacingMode);
+    if (connected) {
+      await stopSession();
+      setTimeout(() => initSession(), 500);
+    }
+  };
+
   const handleExerciseChange = async (e: React.ChangeEvent<HTMLSelectElement>) => {
     const newValue = e.target.value;
     setSelectedExercise(newValue);
@@ -465,6 +478,13 @@ const LiveCoach: React.FC = () => {
                       title={isAudioOn ? "Mutar Microfone" : "Ativar Microfone"}
                     >
                       {isAudioOn ? <Mic size={24} /> : <MicOff size={24} />}
+                    </button>
+                    <button 
+                      onClick={switchCamera}
+                      className="p-4 rounded-full backdrop-blur-md border border-white/20 bg-white/20 text-white hover:bg-white/30 transition-all"
+                      title="Alternar Câmera"
+                    >
+                      <SwitchCamera size={24} />
                     </button>
                  </div>
                  
