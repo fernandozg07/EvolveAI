@@ -1,20 +1,39 @@
 <div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
+<img width="1200" height="475" alt="EvolveAI Banner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
 </div>
 
-# Run and deploy your AI Studio app
+# EvolveAI
 
-This contains everything you need to run your app locally.
+Uma aplicação AI Studio com integração Gemini.
 
-View your app in AI Studio: https://ai.studio/apps/drive/1A43pwtMmpFF2Mgq3PTRe1cAt4oo-mRfF
+## 📋 Pré-requisitos
 
-## Run Locally
+- Node.js (versão 14 ou superior)
+- Chave API do Gemini
 
-**Prerequisites:**  Node.js
+## 🚀 Executar Localmente
 
+1. **Instalar dependências:**
+   ```bash
+   npm install
+   ```
 
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+2. **Configurar variáveis de ambiente:**
+   
+   Defina a `GEMINI_API_KEY` no arquivo [.env.local](.env.local):
+   ```env
+   GEMINI_API_KEY=sua_chave_api_aqui
+   ```
+
+3. **Iniciar o servidor de desenvolvimento:**
+   ```bash
+   npm run dev
+   ```
+
+4. **Acessar a aplicação:**
+   
+   Abra [http://localhost:3000](http://localhost:3000) no seu navegador.
+
+## 🔗 Links
+
+- [Ver app no AI Studio](https://ai.studio/apps/drive/1A43pwtMmpFF2Mgq3PTRe1cAt4oo-mRfF)
