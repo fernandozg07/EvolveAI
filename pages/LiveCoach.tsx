@@ -85,13 +85,14 @@ const LiveCoach: React.FC = () => {
     try {
       const ai = new GoogleGenAI({ apiKey });
       
-      // Get Media Stream (Camera + Mic)
+      // Get Media Stream (Camera + Mic) - Vertical/Portrait Mode
       const stream = await navigator.mediaDevices.getUserMedia({ 
         audio: true, 
         video: { 
-          width: 640, 
-          height: 480,
-          facingMode: facingMode
+          width: { ideal: 1080 },
+          height: { ideal: 1920 },
+          facingMode: facingMode,
+          aspectRatio: 9/16
         } 
       }).catch(err => {
         throw new Error("Não foi possível acessar a câmera/microfone. Verifique se outro app está usando.");
@@ -444,7 +445,7 @@ const LiveCoach: React.FC = () => {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Main Video Area */}
         <div className="lg:col-span-2 space-y-4">
-          <div className="relative bg-black rounded-3xl overflow-hidden shadow-2xl aspect-video ring-4 ring-slate-100">
+          <div className="relative bg-black rounded-3xl overflow-hidden shadow-2xl aspect-[9/16] max-h-[80vh] mx-auto ring-4 ring-slate-100">
             {!connected && (
               <div className="absolute inset-0 flex flex-col items-center justify-center text-white/50 z-10 bg-slate-900">
                 <Camera size={64} className="mb-4 opacity-50" />
