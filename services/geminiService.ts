@@ -1,9 +1,9 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { WorkoutPlan, DietPlan, ExerciseInfo, UserProfile, ShoppingItem } from "../types";
 
-const apiKey = process.env.API_KEY;
+const apiKey = import.meta.env.VITE_API_KEY;
 if (!apiKey) {
-  console.error("API_KEY is missing from environment variables.");
+  console.error("VITE_API_KEY is missing from environment variables.");
 }
 
 const ai = new GoogleGenAI({ apiKey: apiKey || 'dummy-key-for-types' });

@@ -1,11 +1,11 @@
 import React from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
-import { Dumbbell, Utensils, Activity, MessageCircle, BarChart, Home, Menu, X, BookOpen, Camera, UserCircle, LogOut } from 'lucide-react';
+import { Dumbbell, Utensils, Activity, MessageCircle, BarChart, Home, Menu, X, BookOpen, Camera, UserCircle, LogOut, Image } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 
 const Layout: React.FC = () => {
   const [isMenuOpen, setIsMenuOpen] = React.useState(false);
-  const { currentUser, logout } = useAuth();
+  const { user, logout } = useAuth();
   const navigate = useNavigate();
 
   const toggleMenu = () => setIsMenuOpen(!isMenuOpen);
@@ -22,6 +22,7 @@ const Layout: React.FC = () => {
     { to: "/workout", icon: <Dumbbell size={20} />, label: "Treino", color: "text-indigo-500 group-hover:text-indigo-600" },
     { to: "/diet", icon: <Utensils size={20} />, label: "Dieta", color: "text-emerald-500 group-hover:text-emerald-600" },
     { to: "/exercises", icon: <BookOpen size={20} />, label: "Biblioteca", color: "text-cyan-500 group-hover:text-cyan-600" },
+    { to: "/photos", icon: <Image size={20} />, label: "Evolução", color: "text-orange-500 group-hover:text-orange-600" },
     { to: "/progress", icon: <Activity size={20} />, label: "Progresso", color: "text-amber-500 group-hover:text-amber-600" },
     { to: "/chat", icon: <MessageCircle size={20} />, label: "Chat", color: "text-pink-500 group-hover:text-pink-600" },
     { to: "/my-workouts", icon: <BarChart size={20} />, label: "Meus Planos", color: "text-purple-500 group-hover:text-purple-600" },
@@ -48,7 +49,7 @@ const Layout: React.FC = () => {
             {/* Desktop Menu */}
             <div className="hidden md:flex space-x-1 items-center">
               <div className="mr-3 px-3 py-1 bg-indigo-50 rounded-full text-xs font-bold text-indigo-700">
-                {currentUser}
+                {user?.username}
               </div>
               <button onClick={handleLogout} className="p-2 text-slate-400 hover:text-red-500 transition-colors" title="Sair">
                 <LogOut size={18} />
